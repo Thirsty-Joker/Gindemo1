@@ -115,6 +115,8 @@ func isValidMaxMinUVC(maxUVC string, minUVC string) bool {
 	if !isValidUVC(minUVC) {
 		return false
 	}
+
+	//todo 需要用版本号大小比较规则重载
 	if maxUVC < minUVC {
 		return false
 	}
