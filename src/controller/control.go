@@ -19,10 +19,12 @@ func Config(c *gin.Context) {
 		return
 	}
 	if service.CheckConfig(config) {
-		c.JSON(http.StatusOK, config)
-	} else {
-		c.String(http.StatusBadRequest, "check fail")
+		if model.AddRule(config) {
+			c.JSON(http.StatusOK, config)
+			return
+		}
 	}
+	c.String(http.StatusBadRequest, "check fail")
 }
 
 func Check(c *gin.Context) {
@@ -31,7 +33,7 @@ func Check(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	downloadUrl, updateVersionCode, md5, title, updateTips := service.Hit(form)
+	downloadUrl, updateVersionCode, md5, title, updateTips := service.Hit(&form)
 	c.JSON(http.StatusOK, gin.H{
 		"download_url:":       downloadUrl,
 		"update_version_code": updateVersionCode,

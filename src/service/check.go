@@ -7,28 +7,90 @@ import (
 	"strings"
 )
 
-func Hit(form model.Client) (string, string, string, string, string) {
+func Hit(form *model.Client) (string, string, string, string, string) {
 	//todo test
 	//if hit,
 	//return downloadUrl, updateVersionCode, md5, title, updateTips
 
-	var downloadUrl, updateVersionCode, md5, title, updateTips string
+	var hitRule *model.Rule
 
-	//需要 model 层实现返回规则集的接口 已完成
 	//var rules *[]model.Rule
 	rules := model.GetRules(form.DeviceId)
+	
 	//order by updateVersionCode, use quickSort O(nlogn)
 	quickSort(rules, 0, len(*rules)-1)
-
-	//O(n)
-	for _, rule := range *rules {
-		if matchRule(&rule, &form) {
-			downloadUrl, updateVersionCode, md5, title, updateTips = getDownloadInfo(&rule)
+	
+	//对于 rule, 显然 rule.UpdateVersionCode > rule.MaxUpdateVersionCode >= rule.MinUpdateVersionCode
+	//按照常理来说，对 rule.UpdateVersionCode 进行排序之后，rule.MaxUpdateVersionCode 和 rule.MinUpdateVersionCode 也是有序的
+	// 所以进行二分，找到 form.UpdateVersionCode 符合的 rule 子集
+	left, right := binarySearchLeft(rules, form), binarySearchRight(rules, form)
+	
+	//由于 rules 是按照从小到大的顺序排列，而有多个匹配的规则时，应该返回 UpdateVersion 最大的（即返回最新版本的安装包链接）
+	//所以需要 从 right 到 left 进行匹配，取第一个命中的 rule
+	for i := right; i >= left; i-- {
+		if matchRule(&(*rules)[i], form) {
+			hitRule = &(*rules)[i]
 			break
 		}
 	}
-	return downloadUrl, updateVersionCode, md5, title, updateTips
+	
+	return getDownloadInfo(hitRule)
 }
+
+func binarySearchRight(rules *[]model.Rule, form *model.Client) int {
+	l, r := 0, len(*rules)-1
+	for l < r{
+		m := l + ((r-l) >> 1 + 1) // 很怪，>> 比 r-l 先执行？？？
+		//if form.UpdateVersionCode < (*rules)[m].MinUpdateVersionCode
+		if compareUpdateVersionCode(form.UpdateVersionCode, (*rules)[m].MinUpdateVersionCode) == -1 {
+			r = m-1
+		} else {
+			l = m
+		}
+	}
+	return l
+}
+
+
+func binarySearchLeft(rules *[]model.Rule, form *model.Client) int {
+	l, r := 0, len(*rules)-1
+	for l < r{
+		m := l + ((r-l) >> 1) // 很怪，>> 比 r-l 先执行？？？
+		//if form.UpdateVersionCode > (*rules)[m].MaxUpdateVersionCode {
+		if compareUpdateVersionCode(form.UpdateVersionCode, (*rules)[m].MaxUpdateVersionCode) == 1{
+			l = m+1
+		} else {
+			r = m
+		}
+	}
+	return l
+}
+
+
+func compareUpdateVersionCode(UpdateVersionCode1, UpdateVersionCode2 string) int {
+	/*
+	比较 UpdateVersionCode 大小的函数，UpdateVersionCode1 和 UpdateVersionCode2 格式相同(eg. "1.1.1.1")
+	返回值解析 : 
+	-1 : UpdateVersionCode1 < UpdateVersionCode2
+	0 : UpdateVersionCode1 == UpdateVersionCode2
+	1 : UpdateVersionCode1 > UpdateVersionCode2
+	 */
+	var res int = 0
+	lis1 := strings.Split(UpdateVersionCode1, ".")
+	lis2 := strings.Split(UpdateVersionCode2, ".")
+	for index := 0; index < len(lis1); index++ {
+		if cast.ToInt(lis1[index]) < cast.ToInt(lis2[index]) {
+			res = -1
+			break
+		}
+		if cast.ToInt(lis1[index]) > cast.ToInt(lis2[index]) {
+			res = 1
+			break
+		}
+	}
+	return res 
+}
+
 
 func quickSort(rules *[]model.Rule, l, r int) {
 	if l >= r {
@@ -69,18 +131,7 @@ func matchRule(rule *model.Rule, form *model.Client) bool {
 		return false
 	}
 
-	//是否符合 版本要求（应⽤⼩版本，⽐如8.1.4.01）
-	maxVersionCode := strings.Split((*rule).MaxUpdateVersionCode, ".")
-	minVersionCode := strings.Split((*rule).MinUpdateVersionCode, ".")
-	versionCode := strings.Split((*form).UpdateVersionCode, ".")
-	for index := 0; index < 4; index++ {
-		if cast.ToInt(versionCode[index]) < cast.ToInt(minVersionCode[index]) || cast.ToInt(versionCode[index]) > cast.ToInt(maxVersionCode[index]) {
-			return false
-		}
-		if cast.ToInt(versionCode[index]) != cast.ToInt(minVersionCode[index]) || cast.ToInt(versionCode[index]) != cast.ToInt(maxVersionCode[index]) {
-			break
-		}
-	}
+	//是否符合 版本要求（应⽤⼩版本，⽐如8.1.4.01），将版本筛选放到前面了，此函数不再需要负责此部分工作了
 
 	if (*form).OsApi < (*rule).MinOsApi || (*form).OsApi > (*rule).MaxOsApi {
 		//系统 是否适配
@@ -93,5 +144,8 @@ func matchRule(rule *model.Rule, form *model.Client) bool {
 }
 
 func getDownloadInfo(rule *model.Rule) (string, string, string, string, string) {
+	if nil == rule {
+		return "", "", "", "", ""
+	}
 	return (*rule).DownloadUrl, (*rule).UpdateTips, (*rule).Md5, (*rule).Title, (*rule).UpdateTips
 }

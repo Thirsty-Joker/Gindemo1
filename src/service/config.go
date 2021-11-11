@@ -61,7 +61,7 @@ func CheckConfig(config model.Rule) bool {
 	config.MaxUpdateVersionCode = simplifyVersionCode(config.MaxUpdateVersionCode)
 	config.MinUpdateVersionCode = simplifyVersionCode(config.MinUpdateVersionCode)
 
-	return model.AddRule(config)
+	return true
 }
 
 func isValidAid(aid int) bool {
