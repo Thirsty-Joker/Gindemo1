@@ -8,7 +8,7 @@ import (
 
 func CustomRoute(r *gin.Engine) {
 	r.POST("/check", controller.Check)
-	r.POST("/config", middleware.Validate(), func(c *gin.Context) {
-		go controller.Config(c)
+	r.POST("/config/:action", middleware.Validate(), func(c *gin.Context) {
+		controller.Config(c)
 	})
 }

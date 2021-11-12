@@ -11,7 +11,6 @@ import (
 
 func CheckConfig(config model.Rule) bool {
 
-	//return true
 	if !isValidAid(config.Aid) {
 		log.Println(" invalid Aid")
 		return false
@@ -58,11 +57,23 @@ func CheckConfig(config model.Rule) bool {
 	}
 
 	//版本号化简
-	config.UpdateVersionCode = simplifyVersionCode(config.UpdateVersionCode)
-	config.MaxUpdateVersionCode = simplifyVersionCode(config.MaxUpdateVersionCode)
+	if MatVersion(config.UpdateVersionCode) {
+		config.UpdateVersionCode = simplifyVersionCode(config.UpdateVersionCode)
+	}else{
+		return false
+	}
+	if MatVersion(config.MaxUpdateVersionCode) {
+		config.MaxUpdateVersionCode = simplifyVersionCode(config.MaxUpdateVersionCode)
+	}else{
+		return false
+	}
+	if MatVersion(config.MinUpdateVersionCode){
 	config.MinUpdateVersionCode = simplifyVersionCode(config.MinUpdateVersionCode)
+	}else{
+		return false
+	}
 
-	return true
+	return model.AddRule(config)
 }
 
 func isValidAid(aid int) bool {
@@ -116,8 +127,6 @@ func isValidMaxMinUVC(maxUVC string, minUVC string) bool {
 	if !isValidUVC(minUVC) {
 		return false
 	}
-
-	//todo 需要用版本号大小比较规则重载
 	if maxUVC < minUVC {
 		return false
 	}
@@ -144,6 +153,19 @@ func isValidTitle(title string) bool {
 }
 
 func isValidUpdateTips(updateTips string) bool {
+	return true
+}
+
+func MatVersion(VersionCode string) bool{
+	temp :=strings.Split(VersionCode,".")
+	if len(temp)>3{
+		return false
+	}
+	for i:=0;i<len(temp);i++{
+		if len(temp[i])>4{
+			return false
+		}
+	}
 	return true
 }
 

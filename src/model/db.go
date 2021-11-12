@@ -18,15 +18,6 @@ type Config struct {
 	}
 }
 
-func init() {
-	dsn := "root:wang0805@tcp(127.0.0.1:3306)/sys?charset=utf8mb4&parseTime=True&loc=Local"
-	db, err := gorm.Open("mysql", dsn)
-	if err != nil {
-		panic(err)
-	}
-	Db = db
-}
-
 func Mysql() {
 	dbConfig := Config{}
 

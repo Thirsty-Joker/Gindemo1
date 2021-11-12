@@ -28,6 +28,7 @@ type Rule struct {
 type NewRule struct {
 	gorm.Model
 	Rule
+	Enable       bool        `gorm:"Column: enable"`
 	DeviceIdList []WhiteList `gorm:"many2many:rule2device_list;"`
 }
 
@@ -37,7 +38,7 @@ func (NewRule) TableName() string {
 
 func rule2newRule(rule Rule) NewRule {
 	whiteList := ParseWhiteList(rule.DeviceIdList)
-	return NewRule{Rule: rule, DeviceIdList: *whiteList}
+	return NewRule{Rule: rule, DeviceIdList: *whiteList, Enable: true}
 }
 
 func GetRules(deviceId string) *[]Rule {
@@ -52,7 +53,7 @@ func GetRules(deviceId string) *[]Rule {
 	}
 	return &rules
 }
-func AddRule(rule Rule) bool {
+func AddRule(rule Rule) uint {
 	Mysql()
 	defer Db.Close()
 
@@ -60,7 +61,7 @@ func AddRule(rule Rule) bool {
 	Db.AutoMigrate(&WhiteList{})
 	var newRule = rule2newRule(rule)
 	if err := Db.Create(&newRule).Error; err != nil {
-		return false
+		return 0
 	}
-	return true
+	return newRule.Model.ID
 }
